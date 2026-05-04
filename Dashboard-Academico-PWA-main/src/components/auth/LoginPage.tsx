@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, User, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -15,43 +15,38 @@ interface LoginPageProps {
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // =====================================================
-  // FUNCIÓN DE LOGIN REAL
-  // =====================================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const res = await loginRequest(email, password);
+      const res = await loginRequest(username, password);
 
-      if (!res.ok) {
+      if (!res.ok || !res.user) {
         toast.error(res.msg || "Credenciales incorrectas");
         setIsLoading(false);
         return;
       }
 
-      // Obtener tipo real desde MySQL: estudiante | docente | admin
+      // Mapear tipo Moodle → rol de la app
       const tipo = res.user.tipo_usuario;
       let role: 'student' | 'teacher' | 'admin' = 'student';
-
-      if (tipo === 'estudiante') role = 'student';
       if (tipo === 'docente') role = 'teacher';
-      if (tipo === 'admin') role = 'admin';
+      else if (tipo === 'admin') role = 'admin';
 
-      // Guardar usuario
+      // Guardar usuario y token de Moodle
       localStorage.setItem('user', JSON.stringify(res.user));
+      if (res.moodleToken) {
+        localStorage.setItem('moodleToken', res.moodleToken);
+      }
 
-      // Guardar sesión global
       onLogin(role);
-
       toast.success("Inicio de sesión exitoso");
-
       navigate(`/${role}`);
     } catch (error) {
       console.error("ERROR LOGIN FRONT:", error);
@@ -110,15 +105,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
+                <Label htmlFor="username">Nombre de usuario</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="usuario@ejemplo.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    placeholder="tu.usuario"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="pl-10"
                     required
                   />
