@@ -77,7 +77,6 @@ export const getSiteInfo = async (userToken) => {
 
 // ─────────────────────────────────────────────────
 // Obtiene el perfil completo del usuario con el token de admin
-// Incluye: email, roles, customfields, department, etc.
 // ─────────────────────────────────────────────────
 export const getUserByUsername = async (username) => {
   const result = await callWS("core_user_get_users_by_field", {
@@ -86,4 +85,14 @@ export const getUserByUsername = async (username) => {
   });
 
   return Array.isArray(result) ? result[0] ?? null : null;
+};
+
+// ─────────────────────────────────────────────────
+// Obtiene los cursos en los que está inscrito el usuario.
+// Cada curso incluye el array `roles` con el shortname del rol
+// (editingteacher, teacher, student, etc.)
+// ─────────────────────────────────────────────────
+export const getUserCourses = async (userid) => {
+  const result = await callWS("core_enrol_get_users_courses", { userid });
+  return Array.isArray(result) ? result : [];
 };

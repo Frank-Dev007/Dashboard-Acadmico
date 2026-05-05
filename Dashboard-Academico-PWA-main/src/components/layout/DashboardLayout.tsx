@@ -73,6 +73,14 @@ export default function DashboardLayout({ children, role, onLogout }: DashboardL
     admin: 'bg-purple-500'
   };
 
+  const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const displayName = storedUser
+    ? `${storedUser.nombre} ${storedUser.apellido}`.trim()
+    : 'Usuario Demo';
+  const initials = storedUser
+    ? `${storedUser.nombre?.[0] ?? ''}${storedUser.apellido?.[0] ?? ''}`.toUpperCase()
+    : roleNames[role][0];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -117,11 +125,11 @@ export default function DashboardLayout({ children, role, onLogout }: DashboardL
             <Link to={`/${role}/profile`} className="flex items-center gap-3 hover:bg-gray-100 rounded-lg p-2">
               <Avatar className="w-8 h-8">
                 <AvatarFallback className={roleColors[role]}>
-                  {roleNames[role][0]}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden lg:block text-left">
-                <p className="text-sm text-gray-900">Usuario Demo</p>
+                <p className="text-sm text-gray-900">{displayName}</p>
                 <p className="text-xs text-gray-500">{roleNames[role]}</p>
               </div>
             </Link>
