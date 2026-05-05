@@ -96,3 +96,10 @@ export const getUserCourses = async (userid) => {
   const result = await callWS("core_enrol_get_users_courses", { userid });
   return Array.isArray(result) ? result : [];
 };
+
+// Devuelve todos los usuarios inscritos en un curso con sus roles.
+// Usamos esto para saber el rol exacto del usuario dentro del curso.
+export const getCourseEnrolledUsers = async (courseid) => {
+  const result = await callWS("core_enrol_get_enrolled_users", { courseid });
+  return Array.isArray(result) ? result : [];
+};

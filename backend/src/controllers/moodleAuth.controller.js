@@ -2,20 +2,24 @@ import {
   getUserToken,
   getUserByUsername,
   getUserCourses,
+  getCourseEnrolledUsers,
 } from "../services/moodle.service.js";
 
-// Determina el rol buscando en los roles de sus cursos inscritos.
-// En Moodle los roles son por curso, no por sitio, por eso usamos
-// core_enrol_get_users_courses que devuelve roles[] por cada curso.
-const resolveRoleFromCourses = (courses) => {
-  const allRoles = (courses ?? []).flatMap((c) =>
-    (c.roles ?? []).map((r) => r.shortname)
-  );
-  console.log("🎭 Roles en cursos:", allRoles);
+// Detecta el rol buscando al usuario en la lista de inscritos del primer
+// curso que tenga. core_enrol_get_enrolled_users sí devuelve roles[] por usuario.
+const detectRole = async (userid, courses) => {
+  if (!courses.length) return "estudiante";
 
-  if (allRoles.some((r) => ["manager", "coursecreator"].includes(r)))
+  const courseid = courses[0].id;
+  const enrolledUsers = await getCourseEnrolledUsers(courseid);
+  const me = enrolledUsers.find((u) => u.id === userid);
+  const myRoles = (me?.roles ?? []).map((r) => r.shortname);
+
+  console.log("🎭 Mis roles en el curso:", myRoles);
+
+  if (myRoles.some((r) => ["manager", "coursecreator"].includes(r)))
     return "admin";
-  if (allRoles.some((r) => ["editingteacher", "teacher"].includes(r)))
+  if (myRoles.some((r) => ["editingteacher", "teacher"].includes(r)))
     return "docente";
 
   return "estudiante";
@@ -32,11 +36,9 @@ export const login = async (req, res) => {
     }
 
     // Paso 1: validar credenciales → token personal
-    console.log("🔐 Autenticando usuario:", username);
     const moodleToken = await getUserToken(username, password);
-    console.log("✅ Token obtenido");
 
-    // Paso 2: perfil básico con token de admin (email, nombre, id)
+    // Paso 2: perfil con token de admin (nombre, email, id)
     let userProfile = null;
     try {
       userProfile = await getUserByUsername(username);
@@ -45,15 +47,15 @@ export const login = async (req, res) => {
       console.warn("⚠️ Perfil no disponible:", err.message);
     }
 
-    // Paso 3: cursos del usuario para detectar su rol real
+    // Paso 3: detectar rol real a partir de los cursos del usuario
     let tipo_usuario = "estudiante";
     if (userProfile?.id) {
       try {
         const courses = await getUserCourses(userProfile.id);
-        console.log(`📚 Cursos encontrados: ${courses.length}`);
-        tipo_usuario = resolveRoleFromCourses(courses);
+        console.log(`📚 Cursos: ${courses.length}`);
+        tipo_usuario = await detectRole(userProfile.id, courses);
       } catch (err) {
-        console.warn("⚠️ No se pudieron obtener cursos:", err.message);
+        console.warn("⚠️ No se pudo detectar rol:", err.message);
       }
     }
 
@@ -74,7 +76,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ ERROR LOGIN MOODLE:", error.message, "| errorcode:", error.errorcode);
+    console.error("❌ ERROR LOGIN:", error.message, "| errorcode:", error.errorcode);
 
     const isInvalidLogin =
       error.errorcode === "invalidlogin" ||
