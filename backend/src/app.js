@@ -41,6 +41,7 @@ app.use(express.json());
 // import estudianteRoutes from "./routes/estudiante.routes.js";
 
 import authRoutes from "./routes/auth.routes.js";
+import moodleRoutes from "./routes/moodle.routes.js";
 
 // ----------------------
 // Registrar rutas
@@ -56,6 +57,7 @@ import authRoutes from "./routes/auth.routes.js";
 // app.use("/api/curso-estudiante", cursoEstudiantesRoutes);
 
 app.use("/api/auth", authRoutes);
+app.use("/api/moodle", moodleRoutes);
 
 // Ruta de prueba
 app.get("/", (req, res) => {

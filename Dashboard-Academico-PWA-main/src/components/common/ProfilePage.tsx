@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -5,6 +6,7 @@ import { Label } from '../ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { User, Mail, Shield, LogOut } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { getProfileStats, ProfileStats } from '@/service/api';
 
 interface ProfilePageProps {
   role: 'student' | 'teacher' | 'admin';
@@ -14,41 +16,51 @@ interface ProfilePageProps {
 export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
   const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
 
-  const nombre = storedUser?.nombre ?? '';
+  const nombre   = storedUser?.nombre   ?? '';
   const apellido = storedUser?.apellido ?? '';
-  const correo = storedUser?.correo ?? '';
+  const correo   = storedUser?.correo   ?? '';
   const username = storedUser?.username ?? '';
-  const avatar = storedUser?.avatar ?? null;
+  const avatar   = storedUser?.avatar   ?? null;
+  const userId   = storedUser?.id       ?? null;
+
   const fullName = `${nombre} ${apellido}`.trim() || username || 'Usuario';
   const initials = `${nombre?.[0] ?? ''}${apellido?.[0] ?? ''}`.toUpperCase() || 'U';
 
-  const roleLabels = {
-    student: 'Estudiante',
-    teacher: 'Profesor',
-    admin: 'Administrador',
-  };
+  const [stats, setStats] = useState<ProfileStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
-  const roleColors = {
-    student: 'bg-blue-500',
-    teacher: 'bg-green-500',
-    admin: 'bg-purple-500',
-  };
+  useEffect(() => {
+    if (!userId || role === 'admin') return;
 
-  const stats = role === 'student' ? [
-    { label: 'Promedio General', value: '—' },
-    { label: 'Créditos Completados', value: '—' },
-    { label: 'Cursos Activos', value: '—' },
-    { label: 'Posición en Grupo', value: '—' },
-  ] : role === 'teacher' ? [
-    { label: 'Estudiantes', value: '—' },
-    { label: 'Cursos Activos', value: '—' },
-    { label: 'Promedio Curso', value: '—' },
-    { label: 'Satisfacción', value: '—' },
+    const moodleRole = role === 'teacher' ? 'docente' : 'estudiante';
+    setLoadingStats(true);
+    getProfileStats(userId, moodleRole)
+      .then((data) => setStats(data))
+      .catch(() => setStats(null))
+      .finally(() => setLoadingStats(false));
+  }, [userId, role]);
+
+  const roleLabels = { student: 'Estudiante', teacher: 'Profesor', admin: 'Administrador' };
+  const roleColors = { student: 'bg-blue-500', teacher: 'bg-green-500', admin: 'bg-purple-500' };
+
+  const fmt = (val: string | number | null | undefined) =>
+    loadingStats ? '...' : val != null ? String(val) : '—';
+
+  const statCards = role === 'teacher' ? [
+    { label: 'Estudiantes',   value: fmt(stats?.totalEstudiantes) },
+    { label: 'Cursos Activos', value: fmt(stats?.cursosActivos) },
+    { label: 'Promedio Curso', value: fmt(stats?.promedioCurso) },
+    { label: 'Satisfacción',  value: '—' },
+  ] : role === 'student' ? [
+    { label: 'Promedio General',      value: fmt(stats?.promedioGeneral) },
+    { label: 'Créditos Completados',  value: '—' },
+    { label: 'Cursos Activos',        value: fmt(stats?.cursosActivos) },
+    { label: 'Posición en Grupo',     value: '—' },
   ] : [
-    { label: 'Total Usuarios', value: '—' },
-    { label: 'Cursos Activos', value: '—' },
-    { label: 'Profesores', value: '—' },
-    { label: 'Estudiantes', value: '—' },
+    { label: 'Total Usuarios',  value: '—' },
+    { label: 'Cursos Activos',  value: '—' },
+    { label: 'Profesores',      value: '—' },
+    { label: 'Estudiantes',     value: '—' },
   ];
 
   return (
@@ -76,10 +88,7 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
             </div>
 
             <div className="flex-1">
-              <div className="mb-4">
-                <h2 className="text-gray-900 mb-1">{fullName}</h2>
-              </div>
-
+              <h2 className="text-gray-900 mb-4">{fullName}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="bg-gray-100 p-2 rounded-lg">
@@ -90,7 +99,6 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
                     <p className="text-sm text-gray-900">{correo || '—'}</p>
                   </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                   <div className="bg-gray-100 p-2 rounded-lg">
                     <User className="w-5 h-5 text-gray-600" />
@@ -108,11 +116,11 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-6 text-center">
               <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-              <p className="text-gray-900">{stat.value}</p>
+              <p className="text-gray-900 font-semibold">{stat.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -146,12 +154,8 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
             </div>
           </div>
           <div className="mt-6 flex gap-3">
-            <Button className="bg-indigo-600 hover:bg-indigo-700">
-              Guardar Cambios
-            </Button>
-            <Button variant="outline">
-              Cancelar
-            </Button>
+            <Button className="bg-indigo-600 hover:bg-indigo-700">Guardar Cambios</Button>
+            <Button variant="outline">Cancelar</Button>
           </div>
         </CardContent>
       </Card>
@@ -165,15 +169,9 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-gray-900 mb-2">Cambiar Contraseña</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                La contraseña se gestiona desde Moodle
-              </p>
-              <Button variant="outline">Cambiar Contraseña en Moodle</Button>
-            </div>
-          </div>
+          <h3 className="text-gray-900 mb-2">Cambiar Contraseña</h3>
+          <p className="text-sm text-gray-600 mb-4">La contraseña se gestiona desde Moodle</p>
+          <Button variant="outline">Cambiar Contraseña en Moodle</Button>
         </CardContent>
       </Card>
 

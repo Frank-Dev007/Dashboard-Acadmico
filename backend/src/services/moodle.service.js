@@ -103,3 +103,67 @@ export const getCourseEnrolledUsers = async (courseid) => {
   const result = await callWS("core_enrol_get_enrolled_users", { courseid });
   return Array.isArray(result) ? result : [];
 };
+
+// Devuelve las calificaciones finales del usuario en cada curso inscrito.
+// Usado como fallback; no incluye grademax.
+export const getUserGradesOverview = async (userid) => {
+  const result = await callWS("gradereport_overview_get_course_grades", { userid });
+  return result?.grades ?? [];
+};
+
+// Devuelve los ítems de calificación de un usuario en un curso específico.
+// El ítem con itemtype="course" es el total del curso e incluye grademax.
+export const getUserGradeItemsInCourse = async (userid, courseid) => {
+  const result = await callWS("gradereport_user_get_grade_items", { userid, courseid });
+  return result?.usergrades?.[0]?.gradeitems ?? [];
+};
+
+// Devuelve todas las assignments (tareas) de los cursos pasados con sus
+// fechas de entrega (duedate, allowsubmissionsfromdate, etc.)
+export const getCourseAssignments = async (courseids = []) => {
+  const params = {};
+  courseids.forEach((id, i) => {
+    params[`courseids[${i}]`] = id;
+  });
+  const result = await callWS("mod_assign_get_assignments", params);
+  return result?.courses ?? [];
+};
+
+// Estado de entrega del usuario en una assignment específica
+// Devuelve { lastattempt, feedback, ... } y submission con su status
+export const getAssignmentStatus = async (assignid, userid) => {
+  return callWS("mod_assign_get_submission_status", { assignid, userid });
+};
+
+// Devuelve los quizzes de los cursos dados con su fecha límite (timeclose).
+// timeclose = 0 significa sin límite de tiempo.
+export const getCourseQuizzes = async (courseids = []) => {
+  const params = {};
+  courseids.forEach((id, i) => {
+    params[`courseids[${i}]`] = id;
+  });
+  const result = await callWS("mod_quiz_get_quizzes_by_courses", params);
+  return result?.quizzes ?? [];
+};
+
+// Devuelve los intentos de un usuario en un quiz específico.
+// status: "all" | "finished" | "unfinished"
+export const getQuizUserAttempts = async (quizid, userid, status = "all") => {
+  const result = await callWS("mod_quiz_get_user_attempts", {
+    quizid,
+    userid,
+    status,
+    includepreviews: 0,
+  });
+  return result?.attempts ?? [];
+};
+
+// Devuelve los foros de los cursos dados.
+export const getCourseForums = async (courseids = []) => {
+  const params = {};
+  courseids.forEach((id, i) => {
+    params[`courseids[${i}]`] = id;
+  });
+  const result = await callWS("mod_forum_get_forums_by_courses", params);
+  return Array.isArray(result) ? result : [];
+};

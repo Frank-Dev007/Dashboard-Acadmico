@@ -3,11 +3,38 @@ import {
   getUserByUsername,
   getUserCourses,
   getCourseEnrolledUsers,
+  getSiteInfo,
 } from "../services/moodle.service.js";
+import { MOODLE_ADMIN_TOKEN } from "../config/moodle.js";
 
-// Detecta el rol buscando al usuario en la lista de inscritos del primer
-// curso que tenga. core_enrol_get_enrolled_users sí devuelve roles[] por usuario.
-const detectRole = async (userid, courses) => {
+// ─── Paso A: detectar admin ───────────────────────────────────────────────────
+// Estrategia 1: getSiteInfo con el token del propio usuario → siteadmin: 1
+// Estrategia 2: getSiteInfo con el MOODLE_ADMIN_TOKEN → comparar userid
+//   (funciona cuando el token de servicio pertenece al mismo usuario admin)
+const detectAdmin = async (moodleToken, userId) => {
+  // Estrategia 1
+  try {
+    const info = await getSiteInfo(moodleToken);
+    console.log("🏠 siteadmin (user token):", info?.siteadmin, "| userid:", info?.userid);
+    if (info?.siteadmin) return true;
+  } catch (e) {
+    console.log("ℹ️ getSiteInfo (user token) falló:", e.message);
+  }
+
+  // Estrategia 2
+  try {
+    const adminInfo = await getSiteInfo(MOODLE_ADMIN_TOKEN);
+    console.log("🔑 Admin userid (service token):", adminInfo?.userid, "| User id:", userId);
+    if (adminInfo?.userid && adminInfo.userid === userId) return true;
+  } catch (e) {
+    console.log("ℹ️ getSiteInfo (admin token) falló:", e.message);
+  }
+
+  return false;
+};
+
+// ─── Paso B: detectar docente por roles en cursos ────────────────────────────
+const detectRoleFromCourses = async (userid, courses) => {
   if (!courses.length) return "estudiante";
 
   const courseid = courses[0].id;
@@ -15,13 +42,9 @@ const detectRole = async (userid, courses) => {
   const me = enrolledUsers.find((u) => u.id === userid);
   const myRoles = (me?.roles ?? []).map((r) => r.shortname);
 
-  console.log("🎭 Mis roles en el curso:", myRoles);
+  console.log("🎭 Roles en el curso:", myRoles);
 
-  if (myRoles.some((r) => ["manager", "coursecreator"].includes(r)))
-    return "admin";
-  if (myRoles.some((r) => ["editingteacher", "teacher"].includes(r)))
-    return "docente";
-
+  if (myRoles.some((r) => ["editingteacher", "teacher"].includes(r))) return "docente";
   return "estudiante";
 };
 
@@ -35,10 +58,10 @@ export const login = async (req, res) => {
       return res.status(400).json({ ok: false, msg: "Faltan datos" });
     }
 
-    // Paso 1: validar credenciales → token personal
+    // 1. Validar credenciales → token personal
     const moodleToken = await getUserToken(username, password);
 
-    // Paso 2: perfil con token de admin (nombre, email, id)
+    // 2. Perfil con token de admin (nombre, email, id)
     let userProfile = null;
     try {
       userProfile = await getUserByUsername(username);
@@ -47,15 +70,19 @@ export const login = async (req, res) => {
       console.warn("⚠️ Perfil no disponible:", err.message);
     }
 
-    // Paso 3: detectar rol real a partir de los cursos del usuario
+    // 3. Determinar rol
     let tipo_usuario = "estudiante";
-    if (userProfile?.id) {
+
+    const isAdmin = await detectAdmin(moodleToken, userProfile?.id);
+    if (isAdmin) {
+      tipo_usuario = "admin";
+    } else if (userProfile?.id) {
       try {
         const courses = await getUserCourses(userProfile.id);
         console.log(`📚 Cursos: ${courses.length}`);
-        tipo_usuario = await detectRole(userProfile.id, courses);
+        tipo_usuario = await detectRoleFromCourses(userProfile.id, courses);
       } catch (err) {
-        console.warn("⚠️ No se pudo detectar rol:", err.message);
+        console.warn("⚠️ No se pudo detectar rol por cursos:", err.message);
       }
     }
 
