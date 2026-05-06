@@ -127,7 +127,7 @@ export interface TimelineItem {
   titulo: string;
   curso: string;
   fecha: number;
-  estado: 'completed' | 'late';
+  estado: 'completed' | 'late' | 'missed';
 }
 
 export interface StudentParticipationData {
@@ -136,6 +136,7 @@ export interface StudentParticipationData {
   totalForos: number;
   entregasATiempo: number;
   entregasTardias: number;
+  noEntregadas: number;
   cursos: CourseParticipationData[];
   timeline: TimelineItem[];
 }

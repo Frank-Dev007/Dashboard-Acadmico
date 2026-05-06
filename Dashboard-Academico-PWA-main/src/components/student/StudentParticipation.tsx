@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { MessageSquare, FileText, CheckCircle, Clock, Calendar, AlertCircle } from 'lucide-react';
+import { MessageSquare, FileText, CheckCircle, Clock, Calendar, AlertCircle, XCircle } from 'lucide-react';
 import { Progress } from '../ui/progress';
 import { Badge } from '../ui/badge';
 import { getStudentParticipation, StudentParticipationData } from '@/service/api';
@@ -85,6 +85,13 @@ export default function StudentParticipation() {
       label: 'Entregas Tardías',
       value: fmt(data?.entregasTardias),
       icon: AlertCircle,
+      color: 'text-orange-600',
+      bg: 'bg-orange-50',
+    },
+    {
+      label: 'No Entregadas',
+      value: fmt(data?.noEntregadas),
+      icon: XCircle,
       color: 'text-red-600',
       bg: 'bg-red-50',
     },
@@ -99,7 +106,7 @@ export default function StudentParticipation() {
       </div>
 
       {/* ── Tarjetas de resumen ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -202,10 +209,16 @@ export default function StudentParticipation() {
                         className={
                           item.estado === 'completed'
                             ? 'bg-green-100 text-green-700'
+                            : item.estado === 'late'
+                            ? 'bg-orange-100 text-orange-700'
                             : 'bg-red-100 text-red-700'
                         }
                       >
-                        {item.estado === 'completed' ? 'Completado' : 'Entrega tardía'}
+                        {item.estado === 'completed'
+                          ? 'Completado'
+                          : item.estado === 'late'
+                          ? 'Entrega tardía'
+                          : 'No entregada'}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-500 ml-11">

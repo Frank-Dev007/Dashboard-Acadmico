@@ -167,3 +167,35 @@ export const getCourseForums = async (courseids = []) => {
   const result = await callWS("mod_forum_get_forums_by_courses", params);
   return Array.isArray(result) ? result : [];
 };
+
+// Devuelve los debates de un foro. Intenta primero la versión nueva
+// (Moodle 4.0+) y cae a la paginada (Moodle 3.x) si la primera no existe.
+export const getForumDiscussions = async (forumid) => {
+  try {
+    const result = await callWS("mod_forum_get_forum_discussions", {
+      forumid,
+      sortorder: -1,
+      page: 0,
+      perpage: 0,
+    });
+    return result?.discussions ?? [];
+  } catch (err) {
+    if (err.errorcode === "invalidrecord" || err.errorcode === "accessexception" || /not exist|función|function/i.test(err.message ?? "")) {
+      const result = await callWS("mod_forum_get_forum_discussions_paginated", {
+        forumid,
+        sortby: "timemodified",
+        sortdirection: "DESC",
+        page: 0,
+        perpage: 0,
+      });
+      return result?.discussions ?? [];
+    }
+    throw err;
+  }
+};
+
+// Devuelve los posts de un debate específico.
+export const getDiscussionPosts = async (discussionid) => {
+  const result = await callWS("mod_forum_get_discussion_posts", { discussionid });
+  return result?.posts ?? [];
+};
