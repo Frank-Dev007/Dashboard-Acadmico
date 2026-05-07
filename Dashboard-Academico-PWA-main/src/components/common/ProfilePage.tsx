@@ -9,7 +9,7 @@ import { Badge } from '../ui/badge';
 import { getProfileStats, ProfileStats } from '@/service/api';
 
 interface ProfilePageProps {
-  role: 'student' | 'teacher' | 'admin';
+  role: 'student' | 'teacher' | 'admin' | 'jefedepartamento';
   onLogout: () => void;
 }
 
@@ -30,7 +30,7 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
   const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
-    if (!userId || role === 'admin') return;
+    if (!userId || role === 'admin' || role === 'jefedepartamento') return;
 
     const moodleRole = role === 'teacher' ? 'docente' : 'estudiante';
     setLoadingStats(true);
@@ -40,8 +40,18 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
       .finally(() => setLoadingStats(false));
   }, [userId, role]);
 
-  const roleLabels = { student: 'Estudiante', teacher: 'Profesor', admin: 'Administrador' };
-  const roleColors = { student: 'bg-blue-500', teacher: 'bg-green-500', admin: 'bg-purple-500' };
+  const roleLabels = {
+    student: 'Estudiante',
+    teacher: 'Profesor',
+    admin: 'Administrador',
+    jefedepartamento: 'Jefe de Departamento',
+  };
+  const roleColors = {
+    student: 'bg-blue-500',
+    teacher: 'bg-green-500',
+    admin: 'bg-purple-500',
+    jefedepartamento: 'bg-orange-500',
+  };
 
   const fmt = (val: string | number | null | undefined) =>
     loadingStats ? '...' : val != null ? String(val) : '—';

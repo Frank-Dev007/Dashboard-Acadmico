@@ -27,6 +27,13 @@ import AdminBulkUpload from './components/admin/AdminBulkUpload';
 import AdminSettings from './components/admin/AdminSettings';
 import AdminReports from './components/admin/AdminReports';
 
+// Jefe de Departamento pages (independientes del admin)
+import JefeDepartamentoDashboard from './components/jefedepartamento/JefeDepartamentoDashboard';
+import JefeDepartamentoUsers from './components/jefedepartamento/JefeDepartamentoUsers';
+import JefeDepartamentoBulkUpload from './components/jefedepartamento/JefeDepartamentoBulkUpload';
+import JefeDepartamentoSettings from './components/jefedepartamento/JefeDepartamentoSettings';
+import JefeDepartamentoReports from './components/jefedepartamento/JefeDepartamentoReports';
+
 // Common pages
 import ProfilePage from './components/common/ProfilePage';
 import NotFoundPage from './components/common/NotFoundPage';
@@ -39,7 +46,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<'student' | 'teacher' | 'admin' | null>(null);
+  const [userRole, setUserRole] = useState<'student' | 'teacher' | 'admin' | 'jefedepartamento' | null>(null);
 
   useEffect(() => {
     // Simulate initial loading
@@ -50,14 +57,14 @@ export default function App() {
       const storedRole = localStorage.getItem('userRole');
       if (storedAuth === 'true' && storedRole) {
         setIsAuthenticated(true);
-        setUserRole(storedRole as 'student' | 'teacher' | 'admin');
+        setUserRole(storedRole as 'student' | 'teacher' | 'admin' | 'jefedepartamento');
       }
     }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
 
-  const handleLogin = (role: 'student' | 'teacher' | 'admin') => {
+  const handleLogin = (role: 'student' | 'teacher' | 'admin' | 'jefedepartamento') => {
     setIsAuthenticated(true);
     setUserRole(role);
     localStorage.setItem('auth', 'true');
@@ -147,6 +154,27 @@ export default function App() {
                   <Route path="settings" element={<AdminSettings />} />
                   <Route path="reports" element={<AdminReports />} />
                   <Route path="profile" element={<ProfilePage role="admin" onLogout={handleLogout} />} />
+                </Routes>
+              </DashboardLayout>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* Jefe de Departamento routes */}
+        <Route
+          path="/jefedepartamento/*"
+          element={
+            isAuthenticated && userRole === 'jefedepartamento' ? (
+              <DashboardLayout role="jefedepartamento" onLogout={handleLogout}>
+                <Routes>
+                  <Route index element={<JefeDepartamentoDashboard />} />
+                  <Route path="users" element={<JefeDepartamentoUsers />} />
+                  <Route path="bulk-upload" element={<JefeDepartamentoBulkUpload />} />
+                  <Route path="settings" element={<JefeDepartamentoSettings />} />
+                  <Route path="reports" element={<JefeDepartamentoReports />} />
+                  <Route path="profile" element={<ProfilePage role="jefedepartamento" onLogout={handleLogout} />} />
                 </Routes>
               </DashboardLayout>
             ) : (

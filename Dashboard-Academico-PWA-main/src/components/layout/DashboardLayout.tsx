@@ -27,7 +27,7 @@ import { Badge } from '../ui/badge';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  role: 'student' | 'teacher' | 'admin';
+  role: 'student' | 'teacher' | 'admin' | 'jefedepartamento';
   onLogout: () => void;
 }
 
@@ -59,18 +59,32 @@ export default function DashboardLayout({ children, role, onLogout }: DashboardL
     { icon: FileText, label: 'Reportes Ejecutivos', path: '/admin/reports' },
   ];
 
-  const navigation = role === 'student' ? studentNav : role === 'teacher' ? teacherNav : adminNav;
+  const jefeNav = [
+    { icon: Home, label: 'Dashboard', path: '/jefedepartamento' },
+    { icon: Users, label: 'Gestión de Usuarios', path: '/jefedepartamento/users' },
+    { icon: Upload, label: 'Carga Masiva', path: '/jefedepartamento/bulk-upload' },
+    { icon: Settings, label: 'Configuración', path: '/jefedepartamento/settings' },
+    { icon: FileText, label: 'Reportes Ejecutivos', path: '/jefedepartamento/reports' },
+  ];
+
+  const navigation =
+    role === 'student' ? studentNav :
+    role === 'teacher' ? teacherNav :
+    role === 'admin'   ? adminNav   :
+    jefeNav;
 
   const roleNames = {
     student: 'Estudiante',
     teacher: 'Profesor',
-    admin: 'Administrador'
+    admin: 'Administrador',
+    jefedepartamento: 'Jefe de Departamento'
   };
 
   const roleColors = {
     student: 'bg-blue-500',
     teacher: 'bg-green-500',
-    admin: 'bg-purple-500'
+    admin: 'bg-purple-500',
+    jefedepartamento: 'bg-orange-500'
   };
 
   const storedUser = JSON.parse(localStorage.getItem('user') || 'null');

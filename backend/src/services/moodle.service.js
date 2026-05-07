@@ -135,6 +135,30 @@ export const getAssignmentStatus = async (assignid, userid) => {
   return callWS("mod_assign_get_submission_status", { assignid, userid });
 };
 
+// Devuelve TODAS las entregas (de todos los usuarios) para los assignment ids dados.
+// Mucho más eficiente que llamar getAssignmentStatus por cada estudiante.
+// Cada item: { assignmentid, submissions: [{ id, userid, status, timecreated, timemodified, ... }] }
+export const getAssignmentSubmissions = async (assignmentids = []) => {
+  const params = {};
+  assignmentids.forEach((id, i) => {
+    params[`assignmentids[${i}]`] = id;
+  });
+  const result = await callWS("mod_assign_get_submissions", params);
+  return result?.assignments ?? [];
+};
+
+// Devuelve las calificaciones por assignment (todas las que existen).
+// Cada item: { assignmentid, grades: [{ id, userid, grade, timecreated, timemodified, grader, ... }] }
+// grade = "-1" o "" significa sin calificar.
+export const getAssignmentGrades = async (assignmentids = []) => {
+  const params = {};
+  assignmentids.forEach((id, i) => {
+    params[`assignmentids[${i}]`] = id;
+  });
+  const result = await callWS("mod_assign_get_grades", params);
+  return result?.assignments ?? [];
+};
+
 // Devuelve los quizzes de los cursos dados con su fecha límite (timeclose).
 // timeclose = 0 significa sin límite de tiempo.
 export const getCourseQuizzes = async (courseids = []) => {

@@ -150,6 +150,145 @@ export const getStudentParticipation = async (
   return res.json();
 };
 
+export interface TeacherActivity {
+  tipo: 'submission' | 'quiz' | 'forum' | 'alert';
+  estudiante: string;
+  accion: string;
+  curso: string;
+  fecha: number;
+}
+
+export interface TeacherTask {
+  actividad: string;
+  curso: string;
+  fecha: number | null;
+  count: number;
+}
+
+export interface TeacherDashboardData {
+  ok: boolean;
+  estudiantesInscritos: number;
+  entregasRecibidas: number;
+  entregasEsperadas: number;
+  completitudPercent: number;
+  promedioGeneral: number | null;
+  estudiantesEnRiesgo: number;
+  actividadReciente: TeacherActivity[];
+  tareasPorCalificar: TeacherTask[];
+}
+
+export const getTeacherDashboard = async (
+  userId: number
+): Promise<TeacherDashboardData> => {
+  const res = await fetch(
+    `${API_BASE}/api/moodle/teacher/dashboard?userId=${userId}`
+  );
+  return res.json();
+};
+
+export interface ActivityRow {
+  id: string;
+  nombre: string;
+  curso: string;
+  tipo: 'assignment' | 'quiz' | 'forum';
+  fechaLimite: number | null;
+  entregas: number;
+  totalEstudiantes: number;
+  porCalificar: number;
+  tardias: number;
+  sinEntregar: number;
+}
+
+export interface PuntualidadCurso {
+  curso: string;
+  onTime: number;
+  late: number;
+  notSubmitted: number;
+}
+
+export interface TeacherActivitiesData {
+  ok: boolean;
+  resumen: {
+    actividadesActivas: number;
+    porCalificar: number;
+    entregasATiempo: number;
+    entregasTardias: number;
+    sinEntregar: number;
+  };
+  puntualidadPorCurso: PuntualidadCurso[];
+  actividades: ActivityRow[];
+}
+
+export const getTeacherActivities = async (
+  userId: number
+): Promise<TeacherActivitiesData> => {
+  const res = await fetch(
+    `${API_BASE}/api/moodle/teacher/activities?userId=${userId}`
+  );
+  return res.json();
+};
+
+export interface GradeRange {
+  rango: string;
+  cantidad: number;
+  porcentaje: number;
+}
+
+export interface RankedStudent {
+  id: number;
+  nombre: string;
+  promedio: number;
+}
+
+export interface TeacherEvaluationsData {
+  ok: boolean;
+  tasaAprobacion: number;
+  evaluacionesRealizadas: number;
+  distribucion: GradeRange[];
+  mejoresEstudiantes: RankedStudent[];
+  requierenAtencion: RankedStudent[];
+}
+
+export const getTeacherEvaluations = async (
+  userId: number
+): Promise<TeacherEvaluationsData> => {
+  const res = await fetch(
+    `${API_BASE}/api/moodle/teacher/evaluations?userId=${userId}`
+  );
+  return res.json();
+};
+
+export type RiskLevel = 'high' | 'medium' | 'low';
+
+export interface RiskStudent {
+  id: number;
+  nombre: string;
+  email: string;
+  promedio: number;
+  riskLevel: RiskLevel;
+  lastActivity: number | null;
+  alerts: string[];
+}
+
+export interface TeacherRiskMapData {
+  ok: boolean;
+  counts: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+  students: RiskStudent[];
+}
+
+export const getTeacherRiskMap = async (
+  userId: number
+): Promise<TeacherRiskMapData> => {
+  const res = await fetch(
+    `${API_BASE}/api/moodle/teacher/risk-map?userId=${userId}`
+  );
+  return res.json();
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper para futuras llamadas autenticadas a través del backend.
 // Incluye automáticamente el moodleToken guardado en localStorage.
