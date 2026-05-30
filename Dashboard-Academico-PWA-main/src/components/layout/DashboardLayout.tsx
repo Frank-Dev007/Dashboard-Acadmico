@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  GraduationCap, 
-  Menu, 
-  X, 
-  Home, 
-  BarChart3, 
-  MessageSquare, 
-  Clock, 
+import {
+  GraduationCap,
+  Menu,
+  X,
+  Home,
+  BarChart3,
+  MessageSquare,
+  Clock,
   AlertTriangle,
   BookOpen,
   FileCheck,
@@ -19,7 +19,9 @@ import {
   LogOut,
   Bell,
   Search,
-  TrendingUp
+  TrendingUp,
+  ClipboardList,
+  Activity
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback } from '../ui/avatar';
@@ -62,6 +64,8 @@ export default function DashboardLayout({ children, role, onLogout }: DashboardL
   const jefeNav = [
     { icon: Home, label: 'Dashboard', path: '/jefedepartamento' },
     { icon: Users, label: 'Gestión de Usuarios', path: '/jefedepartamento/users' },
+    { icon: ClipboardList, label: 'Gestión Docente', path: '/jefedepartamento/gestion-docente' },
+    { icon: Activity, label: 'Movimientos Docentes', path: '/jefedepartamento/movimientos' },
     { icon: Upload, label: 'Carga Masiva', path: '/jefedepartamento/bulk-upload' },
     { icon: Settings, label: 'Configuración', path: '/jefedepartamento/settings' },
     { icon: FileText, label: 'Reportes Ejecutivos', path: '/jefedepartamento/reports' },

@@ -104,6 +104,27 @@ export const getCourseEnrolledUsers = async (courseid) => {
   return Array.isArray(result) ? result : [];
 };
 
+// Devuelve todas las categorías de Moodle. Si se pasan criterios, filtra
+// (ej. [{ key: "name", value: "Ingenieria de sistemas" }]).
+export const getCategories = async (criteria = []) => {
+  const params = {};
+  criteria.forEach((c, i) => {
+    params[`criteria[${i}][key]`] = c.key;
+    params[`criteria[${i}][value]`] = c.value;
+  });
+  const result = await callWS("core_course_get_categories", params);
+  return Array.isArray(result) ? result : [];
+};
+
+// Devuelve los cursos de una categoría específica.
+export const getCoursesByCategory = async (categoryId) => {
+  const result = await callWS("core_course_get_courses_by_field", {
+    field: "category",
+    value: categoryId,
+  });
+  return result?.courses ?? [];
+};
+
 // Devuelve las calificaciones finales del usuario en cada curso inscrito.
 // Usado como fallback; no incluye grademax.
 export const getUserGradesOverview = async (userid) => {

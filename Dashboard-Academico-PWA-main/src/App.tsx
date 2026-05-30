@@ -30,6 +30,8 @@ import AdminReports from './components/admin/AdminReports';
 // Jefe de Departamento pages (independientes del admin)
 import JefeDepartamentoDashboard from './components/jefedepartamento/JefeDepartamentoDashboard';
 import JefeDepartamentoUsers from './components/jefedepartamento/JefeDepartamentoUsers';
+import JefeDepartamentoGestionDocente from './components/jefedepartamento/JefeDepartamentoGestionDocente';
+import JefeDepartamentoMovimientos from './components/jefedepartamento/JefeDepartamentoMovimientos';
 import JefeDepartamentoBulkUpload from './components/jefedepartamento/JefeDepartamentoBulkUpload';
 import JefeDepartamentoSettings from './components/jefedepartamento/JefeDepartamentoSettings';
 import JefeDepartamentoReports from './components/jefedepartamento/JefeDepartamentoReports';
@@ -171,6 +173,8 @@ export default function App() {
                 <Routes>
                   <Route index element={<JefeDepartamentoDashboard />} />
                   <Route path="users" element={<JefeDepartamentoUsers />} />
+                  <Route path="gestion-docente" element={<JefeDepartamentoGestionDocente />} />
+                  <Route path="movimientos" element={<JefeDepartamentoMovimientos />} />
                   <Route path="bulk-upload" element={<JefeDepartamentoBulkUpload />} />
                   <Route path="settings" element={<JefeDepartamentoSettings />} />
                   <Route path="reports" element={<JefeDepartamentoReports />} />

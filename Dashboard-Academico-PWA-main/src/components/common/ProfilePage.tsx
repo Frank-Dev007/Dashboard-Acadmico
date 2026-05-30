@@ -6,7 +6,9 @@ import { Label } from '../ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { User, Mail, Shield, LogOut } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import { getProfileStats, ProfileStats } from '@/service/api';
+import { getProfileStats, ProfileStats, getJefeDepartamentoStats, JefeDepartamentoStats } from '@/service/api';
+
+const DEPARTAMENTO_JEFE = 'Ingenieria de sistemas';
 
 interface ProfilePageProps {
   role: 'student' | 'teacher' | 'admin' | 'jefedepartamento';
@@ -29,6 +31,9 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
+  const [jefeStats, setJefeStats] = useState<JefeDepartamentoStats | null>(null);
+  const [loadingJefe, setLoadingJefe] = useState(false);
+
   useEffect(() => {
     if (!userId || role === 'admin' || role === 'jefedepartamento') return;
 
@@ -39,6 +44,15 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
       .catch(() => setStats(null))
       .finally(() => setLoadingStats(false));
   }, [userId, role]);
+
+  useEffect(() => {
+    if (role !== 'jefedepartamento') return;
+    setLoadingJefe(true);
+    getJefeDepartamentoStats(DEPARTAMENTO_JEFE)
+      .then((data) => setJefeStats(data))
+      .catch(() => setJefeStats(null))
+      .finally(() => setLoadingJefe(false));
+  }, [role]);
 
   const roleLabels = {
     student: 'Estudiante',
@@ -56,6 +70,15 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
   const fmt = (val: string | number | null | undefined) =>
     loadingStats ? '...' : val != null ? String(val) : '—';
 
+  const fmtJefe = (val: number | null | undefined) =>
+    loadingJefe ? '...' : val != null ? String(val) : '—';
+
+  // Total Usuarios para el jefe = Estudiantes + Profesores + 1 (jefe)
+  const totalUsuariosJefe =
+    jefeStats?.totalEstudiantes != null && jefeStats?.totalProfesores != null
+      ? jefeStats.totalEstudiantes + jefeStats.totalProfesores + 1
+      : null;
+
   const statCards = role === 'teacher' ? [
     { label: 'Estudiantes',   value: fmt(stats?.totalEstudiantes) },
     { label: 'Cursos Activos', value: fmt(stats?.cursosActivos) },
@@ -66,6 +89,11 @@ export default function ProfilePage({ role, onLogout }: ProfilePageProps) {
     { label: 'Créditos Completados',  value: '—' },
     { label: 'Cursos Activos',        value: fmt(stats?.cursosActivos) },
     { label: 'Posición en Grupo',     value: '—' },
+  ] : role === 'jefedepartamento' ? [
+    { label: 'Total Usuarios',  value: fmtJefe(totalUsuariosJefe) },
+    { label: 'Cursos Activos',  value: fmtJefe(jefeStats?.cursosActivos) },
+    { label: 'Profesores',      value: fmtJefe(jefeStats?.totalProfesores) },
+    { label: 'Estudiantes',     value: fmtJefe(jefeStats?.totalEstudiantes) },
   ] : [
     { label: 'Total Usuarios',  value: '—' },
     { label: 'Cursos Activos',  value: '—' },

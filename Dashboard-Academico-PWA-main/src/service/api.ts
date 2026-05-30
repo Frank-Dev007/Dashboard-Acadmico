@@ -289,6 +289,164 @@ export const getTeacherRiskMap = async (
   return res.json();
 };
 
+// ─── Jefe de Departamento ────────────────────────────────────────────────────
+
+export interface DepartamentoCourse {
+  id: number;
+  nombre: string;
+  shortname: string;
+  visible: boolean;
+  estudiantes: number;
+  promedio: number | null;
+}
+
+export interface JefeDepartamentoStats {
+  ok: boolean;
+  categoryId?: number;
+  categoryName?: string;
+  totalCursos?: number;
+  cursosActivos?: number;
+  totalProfesores: number;
+  totalEstudiantes?: number;
+  promedioInstitucional?: number | null;
+  tasaAprobacion?: number;
+  estudiantesEnRiesgo?: number;
+  courses?: DepartamentoCourse[];
+  msg?: string;
+}
+
+export const getJefeDepartamentoStats = async (
+  categoryName: string
+): Promise<JefeDepartamentoStats> => {
+  const res = await fetch(
+    `${API_BASE}/api/moodle/jefe-departamento/stats?categoryName=${encodeURIComponent(categoryName)}`
+  );
+  return res.json();
+};
+
+export interface JefeDepartamentoUser {
+  id: number;
+  nombre: string;
+  correo: string;
+  role: 'student' | 'teacher';
+  lastaccess: number;
+  avgSessionHours?: number;
+}
+
+export interface JefeDepartamentoUsersData {
+  ok: boolean;
+  categoryId?: number;
+  categoryName?: string;
+  users: JefeDepartamentoUser[];
+  msg?: string;
+}
+
+export const getJefeDepartamentoUsers = async (
+  categoryName: string
+): Promise<JefeDepartamentoUsersData> => {
+  const res = await fetch(
+    `${API_BASE}/api/moodle/jefe-departamento/users?categoryName=${encodeURIComponent(categoryName)}`
+  );
+  return res.json();
+};
+
+export interface JefeDepartamentoTeacherRow {
+  teacherId: number;
+  teacherName: string;
+  teacherEmail: string;
+  courseId: number;
+  courseName: string;
+  totalActividades: number;
+  promedio: number | null;
+  estudiantesEnRiesgo: number;
+  totalEstudiantes: number;
+  totalAccesos: number;
+  recursosPublicados: number;
+  frecuenciaSesion: number;
+  totalSesiones: number;
+  sesionesConMovimiento: number;
+}
+
+export interface JefeDepartamentoTeachersData {
+  ok: boolean;
+  categoryId?: number;
+  categoryName?: string;
+  fromTs?: number;
+  toTs?: number;
+  rows: JefeDepartamentoTeacherRow[];
+  msg?: string;
+}
+
+export const getJefeDepartamentoTeachers = async (
+  categoryName: string,
+  fromDate?: string,
+  toDate?: string
+): Promise<JefeDepartamentoTeachersData> => {
+  const params = new URLSearchParams({ categoryName });
+  if (fromDate) params.append('fromDate', fromDate);
+  if (toDate) params.append('toDate', toDate);
+  const res = await fetch(
+    `${API_BASE}/api/moodle/jefe-departamento/teachers?${params.toString()}`
+  );
+  return res.json();
+};
+
+export interface JefeDepartamentoMovimientoRow {
+  teacherId: number;
+  teacherName: string;
+  teacherEmail: string;
+  courseId: number;
+  courseName: string;
+  assignmentId: number;
+  assignmentName: string;
+  duedate: number | null;
+  totalEntregas: number;
+  calificadas: number;
+  descargoPlantilla: boolean;
+  totalEstudiantes: number;
+}
+
+export interface JefeDepartamentoMovimientosData {
+  ok: boolean;
+  categoryId?: number;
+  categoryName?: string;
+  semester?: string | null;
+  semesterRange?: { startTs: number; endTs: number } | null;
+  rows: JefeDepartamentoMovimientoRow[];
+  teacherCourseAvgs: Record<string, number | null>;
+  universityMax: number;
+  msg?: string;
+}
+
+export const getJefeDepartamentoMovimientos = async (
+  categoryName: string,
+  semester?: string
+): Promise<JefeDepartamentoMovimientosData> => {
+  const params = new URLSearchParams({ categoryName });
+  if (semester) params.append('semester', semester);
+  const res = await fetch(
+    `${API_BASE}/api/moodle/jefe-departamento/movimientos?${params.toString()}`
+  );
+  return res.json();
+};
+
+export interface JefeDepartamentoSemestersData {
+  ok: boolean;
+  categoryName?: string;
+  semesters: string[];
+  currentSemester: string | null;
+  msg?: string;
+}
+
+export const getJefeDepartamentoSemesters = async (
+  categoryName: string
+): Promise<JefeDepartamentoSemestersData> => {
+  const res = await fetch(
+    `${API_BASE}/api/moodle/jefe-departamento/movimientos/semesters?categoryName=${encodeURIComponent(categoryName)}`
+  );
+  return res.json();
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper para futuras llamadas autenticadas a través del backend.
 // Incluye automáticamente el moodleToken guardado en localStorage.

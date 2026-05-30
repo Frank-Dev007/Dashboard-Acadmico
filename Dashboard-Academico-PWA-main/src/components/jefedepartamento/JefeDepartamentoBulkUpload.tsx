@@ -1,67 +1,11 @@
 // Componente independiente del perfil "Jefe de Departamento".
 // Inicialmente es una copia de AdminBulkUpload. Cualquier cambio aquí
 // NO afecta a /admin y viceversa.
-import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle, Download } from 'lucide-react';
-import { Progress } from '../ui/progress';
-import { Badge } from '../ui/badge';
-import { toast } from 'sonner@2.0.3';
+import { FileSpreadsheet, AlertCircle, Download } from 'lucide-react';
 
 export default function JefeDepartamentoBulkUpload() {
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'complete'>('idle');
-  const [progress, setProgress] = useState(0);
-  const [results, setResults] = useState<any>(null);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadStatus('uploading');
-    setProgress(0);
-
-    const uploadInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(uploadInterval);
-          setUploadStatus('processing');
-          processFile();
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-  };
-
-  const processFile = () => {
-    setTimeout(() => {
-      setUploadStatus('complete');
-      setResults({
-        total: 150,
-        successful: 142,
-        failed: 8,
-        details: [
-          { row: 5, name: 'Juan Pérez', email: 'juan@email.com', status: 'error', reason: 'Email duplicado' },
-          { row: 12, name: 'María López', email: 'maria@invalid', status: 'error', reason: 'Email inválido' },
-          { row: 23, name: 'Carlos Ruiz', email: '', status: 'error', reason: 'Campo email vacío' },
-          { row: 45, name: 'Ana Torres', email: 'ana@email.com', status: 'error', reason: 'Rol inválido' },
-          { row: 67, name: '', email: 'pedro@email.com', status: 'error', reason: 'Campo nombre vacío' },
-          { row: 89, name: 'Laura Gómez', email: 'laura@email.com', status: 'error', reason: 'Programa no existe' },
-          { row: 103, name: 'Roberto Díaz', email: 'roberto@email.com', status: 'error', reason: 'Formato incorrecto' },
-          { row: 128, name: 'Sofia Martínez', email: 'sofia@email.com', status: 'error', reason: 'Email duplicado' },
-        ]
-      });
-      toast.success('Carga masiva completada');
-    }, 2000);
-  };
-
-  const resetUpload = () => {
-    setUploadStatus('idle');
-    setProgress(0);
-    setResults(null);
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -136,110 +80,6 @@ export default function JefeDepartamentoBulkUpload() {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Cargar Archivo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {uploadStatus === 'idle' && (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-indigo-500 transition-colors">
-              <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-900 mb-2">Arrastra tu archivo aquí o haz clic para seleccionar</p>
-              <p className="text-sm text-gray-600 mb-4">Soporta archivos CSV y Excel (.xlsx) hasta 10MB</p>
-              <input
-                type="file"
-                accept=".csv,.xlsx"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload">
-                <Button className="bg-indigo-600 hover:bg-indigo-700" asChild>
-                  <span>Seleccionar Archivo</span>
-                </Button>
-              </label>
-            </div>
-          )}
-
-          {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-gray-900">
-                  {uploadStatus === 'uploading' ? 'Subiendo archivo...' : 'Procesando datos...'}
-                </p>
-                <span className="text-sm text-gray-600">{progress}%</span>
-              </div>
-              <Progress value={progress} className="h-2" />
-            </div>
-          )}
-
-          {uploadStatus === 'complete' && results && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card className="bg-blue-50 border-blue-200">
-                  <CardContent className="p-4 text-center">
-                    <p className="text-sm text-blue-700 mb-1">Total Procesados</p>
-                    <p className="text-blue-900">{results.total}</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-green-50 border-green-200">
-                  <CardContent className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                      <p className="text-sm text-green-700">Exitosos</p>
-                    </div>
-                    <p className="text-green-900">{results.successful}</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-red-50 border-red-200">
-                  <CardContent className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      <XCircle className="w-4 h-4 text-red-600" />
-                      <p className="text-sm text-red-700">Fallidos</p>
-                    </div>
-                    <p className="text-red-900">{results.failed}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {results.details.length > 0 && (
-                <div>
-                  <h3 className="text-gray-900 mb-3">Errores Detectados</h3>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {results.details.map((detail: any, index: number) => (
-                      <div key={index} className="flex items-start justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="bg-red-100 text-red-700">
-                              Fila {detail.row}
-                            </Badge>
-                            <p className="text-sm text-gray-900">{detail.name || '(Sin nombre)'}</p>
-                          </div>
-                          <p className="text-sm text-gray-600">{detail.email || '(Sin email)'}</p>
-                          <p className="text-xs text-red-600 mt-1">{detail.reason}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <Button onClick={resetUpload} variant="outline">
-                  Cargar Otro Archivo
-                </Button>
-                <Button className="bg-indigo-600 hover:bg-indigo-700">
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar Errores
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 

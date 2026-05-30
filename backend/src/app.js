@@ -42,6 +42,7 @@ app.use(express.json());
 
 import authRoutes from "./routes/auth.routes.js";
 import moodleRoutes from "./routes/moodle.routes.js";
+import cacheRoutes from "./routes/cache.routes.js";
 
 // ----------------------
 // Registrar rutas
@@ -58,6 +59,7 @@ import moodleRoutes from "./routes/moodle.routes.js";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/moodle", moodleRoutes);
+app.use("/api/cache", cacheRoutes);
 
 // Ruta de prueba
 app.get("/", (req, res) => {
