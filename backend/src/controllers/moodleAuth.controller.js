@@ -6,6 +6,38 @@ import {
   getSiteInfo,
 } from "../services/moodle.service.js";
 import { MOODLE_ADMIN_TOKEN } from "../config/moodle.js";
+import { signToken, verifyToken } from "../utils/jwt.js";
+import {
+  JWT_ACCESS_SECRET,
+  JWT_REFRESH_SECRET,
+  ACCESS_TTL_SEC,
+  REFRESH_TTL_SEC,
+} from "../config/jwt.js";
+import {
+  storeRefresh,
+  isRefreshActive,
+  revokeRefresh,
+} from "../services/tokenStore.js";
+
+// Genera access + refresh tokens para un usuario y registra el refresh en el store.
+const issueTokens = async (user) => {
+  const payload = {
+    sub: user.id,
+    role: user.tipo_usuario,
+    username: user.username,
+    nombre: user.nombre,
+  };
+  const accessToken = signToken(payload, JWT_ACCESS_SECRET, ACCESS_TTL_SEC);
+  const refreshToken = signToken(
+    { sub: user.id, role: user.tipo_usuario },
+    JWT_REFRESH_SECRET,
+    REFRESH_TTL_SEC
+  );
+  // Registrar el jti del refresh para poder invalidarlo luego
+  const decoded = verifyToken(refreshToken, JWT_REFRESH_SECRET);
+  await storeRefresh(user.id, decoded.jti, REFRESH_TTL_SEC);
+  return { accessToken, refreshToken };
+};
 
 // ─── Paso A: detectar admin ───────────────────────────────────────────────────
 // Estrategia 1: getSiteInfo con el token del propio usuario → siteadmin: 1
@@ -58,6 +90,27 @@ export const login = async (req, res) => {
       return res.status(400).json({ ok: false, msg: "Faltan datos" });
     }
 
+    // ── Usuario centinela: Jefe de Departamento (no existe en Moodle) ────────
+    if (username === "jefedepsistema" && password === "jefe123*") {
+      const user = {
+        id: 0,
+        nombre: "Jefe",
+        apellido: "de Departamento",
+        correo: "jefedep@sistema.local",
+        tipo_usuario: "jefe",
+        username: "jefedepsistema",
+        avatar: null,
+      };
+      const tokens = await issueTokens(user);
+      return res.json({
+        ok: true,
+        msg: "Login exitoso",
+        moodleToken: null,
+        ...tokens,
+        user,
+      });
+    }
+
     // 1. Validar credenciales → token personal
     const moodleToken = await getUserToken(username, password);
 
@@ -88,19 +141,24 @@ export const login = async (req, res) => {
 
     console.log("✅ Rol detectado:", tipo_usuario);
 
+    const user = {
+      id: userProfile?.id ?? null,
+      nombre: userProfile?.firstname ?? username,
+      apellido: userProfile?.lastname ?? "",
+      correo: userProfile?.email ?? "",
+      tipo_usuario,
+      username,
+      avatar: userProfile?.profileimageurl ?? null,
+    };
+
+    const tokens = await issueTokens(user);
+
     return res.json({
       ok: true,
       msg: "Login exitoso",
       moodleToken,
-      user: {
-        id: userProfile?.id ?? null,
-        nombre: userProfile?.firstname ?? username,
-        apellido: userProfile?.lastname ?? "",
-        correo: userProfile?.email ?? "",
-        tipo_usuario,
-        username,
-        avatar: userProfile?.profileimageurl ?? null,
-      },
+      ...tokens,
+      user,
     });
   } catch (error) {
     console.error("❌ ERROR LOGIN:", error.message, "| errorcode:", error.errorcode);
@@ -116,4 +174,80 @@ export const login = async (req, res) => {
         : "Error al conectar con Moodle",
     });
   }
+};
+
+// POST /api/auth/refresh
+// Body: { refreshToken }. Devuelve un nuevo accessToken (rotando opcionalmente el refresh).
+export const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ ok: false, msg: "Falta refreshToken" });
+    }
+
+    let payload;
+    try {
+      payload = verifyToken(refreshToken, JWT_REFRESH_SECRET);
+    } catch (err) {
+      return res.status(401).json({
+        ok: false,
+        msg: err.expired ? "Refresh token expirado" : "Refresh token inválido",
+        code: err.expired ? "REFRESH_EXPIRED" : "REFRESH_INVALID",
+      });
+    }
+
+    // El refresh debe seguir activo en el store (no revocado)
+    const active = await isRefreshActive(payload.sub, payload.jti);
+    if (!active) {
+      return res
+        .status(401)
+        .json({ ok: false, msg: "Sesión revocada", code: "REFRESH_REVOKED" });
+    }
+
+    // Rotación: revocar el refresh usado y emitir uno nuevo
+    await revokeRefresh(payload.sub, payload.jti);
+    const newRefresh = signToken(
+      { sub: payload.sub, role: payload.role },
+      JWT_REFRESH_SECRET,
+      REFRESH_TTL_SEC
+    );
+    const decoded = verifyToken(newRefresh, JWT_REFRESH_SECRET);
+    await storeRefresh(payload.sub, decoded.jti, REFRESH_TTL_SEC);
+
+    const accessToken = signToken(
+      { sub: payload.sub, role: payload.role },
+      JWT_ACCESS_SECRET,
+      ACCESS_TTL_SEC
+    );
+
+    return res.json({ ok: true, accessToken, refreshToken: newRefresh });
+  } catch (error) {
+    console.error("❌ Error refresh:", error.message);
+    return res.status(500).json({ ok: false, msg: "Error al renovar el token" });
+  }
+};
+
+// POST /api/auth/logout
+// Body: { refreshToken }. Revoca el refresh token (cierra la sesión).
+export const logout = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      try {
+        const payload = verifyToken(refreshToken, JWT_REFRESH_SECRET);
+        await revokeRefresh(payload.sub, payload.jti);
+      } catch {
+        // token ya inválido/expirado → nada que revocar
+      }
+    }
+    return res.json({ ok: true, msg: "Sesión cerrada" });
+  } catch (error) {
+    console.error("❌ Error logout:", error.message);
+    return res.status(500).json({ ok: false, msg: "Error al cerrar sesión" });
+  }
+};
+
+// GET /api/auth/me  (requiere verifyJWT) → devuelve el payload del token actual
+export const me = async (req, res) => {
+  return res.json({ ok: true, user: req.user });
 };

@@ -7,6 +7,10 @@ import { getTeacherDashboard } from "../controllers/teacherDashboard.controller.
 import { getTeacherActivities } from "../controllers/teacherActivities.controller.js";
 import { getTeacherEvaluations } from "../controllers/teacherEvaluations.controller.js";
 import { getTeacherRiskMap } from "../controllers/teacherRiskMap.controller.js";
+import {
+  getTeacherNotifications,
+  markNotificationsRead,
+} from "../controllers/teacherNotifications.controller.js";
 import { getJefeDepartamentoStats } from "../controllers/jefeDepartamentoStats.controller.js";
 import { getJefeDepartamentoUsers } from "../controllers/jefeDepartamentoUsers.controller.js";
 import { getJefeDepartamentoTeachers } from "../controllers/jefeDepartamentoTeachers.controller.js";
@@ -15,8 +19,12 @@ import {
   getJefeDepartamentoSemesters,
 } from "../controllers/jefeDepartamentoMovimientos.controller.js";
 import { cacheMiddleware } from "../utils/cache.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
+
+// Todas las rutas de Moodle requieren un access token válido (JWT)
+router.use(verifyJWT);
 
 // TTLs por tipo de endpoint (en ms)
 const TTL_SHORT = 3 * 60 * 1000;   // 3 min — dashboards (datos frescos)
@@ -71,6 +79,10 @@ router.get(
   cacheMiddleware((req) => `teacher-risk-map:${req.query.userId}`, TTL_MEDIUM),
   getTeacherRiskMap
 );
+// Notificaciones: SIN caché de ruta (hacen diff de snapshot para detectar
+// transiciones a riesgo ALTO). El cálculo pesado de riesgo sí está cacheado.
+router.get("/teacher/notifications", getTeacherNotifications);
+router.post("/teacher/notifications/read", markNotificationsRead);
 
 // ─── Jefe de Departamento ────────────────────────────────────────────────────
 router.get(

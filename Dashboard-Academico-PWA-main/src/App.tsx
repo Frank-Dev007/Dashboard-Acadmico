@@ -41,6 +41,8 @@ import ProfilePage from './components/common/ProfilePage';
 import NotFoundPage from './components/common/NotFoundPage';
 import OfflinePage from './components/common/OfflinePage';
 import SplashScreen from './components/common/SplashScreen';
+import OfflineIndicator from './components/common/OfflineIndicator';
+import InstallPWABanner from './components/common/InstallPWABanner';
 
 // Layout
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -87,6 +89,8 @@ export default function App() {
   return (
     <Router>
       <Toaster />
+      <OfflineIndicator />
+      <InstallPWABanner />
       <Routes>
         {/* Auth routes */}
         <Route 

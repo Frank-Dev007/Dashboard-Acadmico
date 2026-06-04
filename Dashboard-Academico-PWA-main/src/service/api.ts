@@ -1,5 +1,93 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
+// ─── Gestión de tokens JWT ──────────────────────────────────────────────────
+const ACCESS_KEY = "accessToken";
+const REFRESH_KEY = "refreshToken";
+
+export const getAccessToken = () => localStorage.getItem(ACCESS_KEY);
+export const getRefreshToken = () => localStorage.getItem(REFRESH_KEY);
+
+export const setTokens = (accessToken?: string, refreshToken?: string) => {
+  if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+};
+
+export const clearTokens = () => {
+  localStorage.removeItem(ACCESS_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+};
+
+// Renueva el access token usando el refresh token. Devuelve true si lo logró.
+let refreshingPromise: Promise<boolean> | null = null;
+export const refreshAccessToken = async (): Promise<boolean> => {
+  // Evitar múltiples refresh simultáneos
+  if (refreshingPromise) return refreshingPromise;
+
+  refreshingPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok && data.accessToken) {
+        setTokens(data.accessToken, data.refreshToken);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      refreshingPromise = null;
+    }
+  })();
+
+  return refreshingPromise;
+};
+
+// Cierra sesión: limpia todo y redirige al login.
+const forceLogout = () => {
+  clearTokens();
+  localStorage.removeItem("auth");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("user");
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+};
+
+// fetch autenticado: agrega el Authorization, y ante un 401 por token expirado
+// intenta renovar el access token una vez y reintenta la petición.
+export const authFetch = async (
+  input: string,
+  init: RequestInit = {}
+): Promise<Response> => {
+  const withAuth = (token: string | null): RequestInit => ({
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  let res = await fetch(input, withAuth(getAccessToken()));
+
+  if (res.status === 401) {
+    const renewed = await refreshAccessToken();
+    if (renewed) {
+      res = await fetch(input, withAuth(getAccessToken()));
+      if (res.status !== 401) return res;
+    }
+    // No se pudo renovar → cerrar sesión
+    forceLogout();
+  }
+
+  return res;
+};
+
 // ─── Tipos de respuesta ────────────────────────────────────────────────────────
 
 export interface MoodleUser {
@@ -7,7 +95,7 @@ export interface MoodleUser {
   nombre: string;
   apellido: string;
   correo: string;
-  tipo_usuario: "estudiante" | "docente" | "admin";
+  tipo_usuario: "estudiante" | "docente" | "admin" | "jefe";
   username: string;
   avatar: string | null;
 }
@@ -16,6 +104,8 @@ export interface LoginResponse {
   ok: boolean;
   msg: string;
   moodleToken?: string;
+  accessToken?: string;
+  refreshToken?: string;
   user?: MoodleUser;
 }
 
@@ -41,14 +131,33 @@ export const loginRequest = async (
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  return res.json();
+  const data: LoginResponse = await res.json();
+  if (data.ok) {
+    setTokens(data.accessToken, data.refreshToken);
+  }
+  return data;
+};
+
+// Cierra sesión en el backend (revoca el refresh token) y limpia los tokens locales.
+export const logoutRequest = async (): Promise<void> => {
+  const refreshToken = getRefreshToken();
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // ignorar errores de red en logout
+  }
+  clearTokens();
 };
 
 export const getProfileStats = async (
   userId: number,
   role: string
 ): Promise<ProfileStats> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/stats?userId=${userId}&role=${role}`
   );
   return res.json();
@@ -81,7 +190,7 @@ export interface StudentDashboardData {
 export const getStudentDashboard = async (
   userId: number
 ): Promise<StudentDashboardData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/student/dashboard?userId=${userId}`
   );
   return res.json();
@@ -106,7 +215,7 @@ export interface StudentPerformanceData {
 export const getStudentPerformance = async (
   userId: number
 ): Promise<StudentPerformanceData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/student/performance?userId=${userId}`
   );
   return res.json();
@@ -144,7 +253,7 @@ export interface StudentParticipationData {
 export const getStudentParticipation = async (
   userId: number
 ): Promise<StudentParticipationData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/student/participation?userId=${userId}`
   );
   return res.json();
@@ -180,7 +289,7 @@ export interface TeacherDashboardData {
 export const getTeacherDashboard = async (
   userId: number
 ): Promise<TeacherDashboardData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/teacher/dashboard?userId=${userId}`
   );
   return res.json();
@@ -222,7 +331,7 @@ export interface TeacherActivitiesData {
 export const getTeacherActivities = async (
   userId: number
 ): Promise<TeacherActivitiesData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/teacher/activities?userId=${userId}`
   );
   return res.json();
@@ -252,7 +361,7 @@ export interface TeacherEvaluationsData {
 export const getTeacherEvaluations = async (
   userId: number
 ): Promise<TeacherEvaluationsData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/teacher/evaluations?userId=${userId}`
   );
   return res.json();
@@ -260,31 +369,81 @@ export const getTeacherEvaluations = async (
 
 export type RiskLevel = 'high' | 'medium' | 'low';
 
+export interface RiskBreakdown {
+  promedio: number;
+  entregasIncompletas: number;
+  diasSinAcceso: number;
+  participacionForos: number;
+  horasDedicacion: number;
+}
+
 export interface RiskStudent {
   id: number;
   nombre: string;
   email: string;
-  promedio: number;
-  riskLevel: RiskLevel;
+  promedio: number | null;
+  score: number;            // 0..1
+  level: RiskLevel;
+  breakdown: RiskBreakdown; // aporte ponderado de cada señal
+  diasSinAcceso: number | null;
+  totalHoras: number;
+  notSubmitted: number;
+  forosParticipados: number;
+  forosDisponibles: number;
   lastActivity: number | null;
   alerts: string[];
 }
 
 export interface TeacherRiskMapData {
   ok: boolean;
-  counts: {
-    high: number;
-    medium: number;
-    low: number;
-  };
+  counts: { high: number; medium: number; low: number };
   students: RiskStudent[];
+  weights: Record<string, number>;
+  thresholds: { high: number; medium: number };
 }
 
 export const getTeacherRiskMap = async (
   userId: number
 ): Promise<TeacherRiskMapData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/teacher/risk-map?userId=${userId}`
+  );
+  return res.json();
+};
+
+// ─── Notificaciones de riesgo (campana del header) ───────────────────────────
+
+export interface RiskAlert {
+  studentId: number;
+  nombre: string;
+  score: number;
+  level: RiskLevel;
+  promedio: number | null;
+  date: number;
+}
+
+export interface TeacherNotificationsData {
+  ok: boolean;
+  unreadCount: number;
+  alerts: RiskAlert[];
+  isFirstRun?: boolean;
+}
+
+export const getTeacherNotifications = async (
+  userId: number
+): Promise<TeacherNotificationsData> => {
+  const res = await authFetch(
+    `${API_BASE}/api/moodle/teacher/notifications?userId=${userId}`
+  );
+  return res.json();
+};
+
+export const markTeacherNotificationsRead = async (
+  userId: number
+): Promise<{ ok: boolean }> => {
+  const res = await authFetch(
+    `${API_BASE}/api/moodle/teacher/notifications/read?userId=${userId}`,
+    { method: 'POST' }
   );
   return res.json();
 };
@@ -318,7 +477,7 @@ export interface JefeDepartamentoStats {
 export const getJefeDepartamentoStats = async (
   categoryName: string
 ): Promise<JefeDepartamentoStats> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/jefe-departamento/stats?categoryName=${encodeURIComponent(categoryName)}`
   );
   return res.json();
@@ -344,7 +503,7 @@ export interface JefeDepartamentoUsersData {
 export const getJefeDepartamentoUsers = async (
   categoryName: string
 ): Promise<JefeDepartamentoUsersData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/jefe-departamento/users?categoryName=${encodeURIComponent(categoryName)}`
   );
   return res.json();
@@ -385,7 +544,7 @@ export const getJefeDepartamentoTeachers = async (
   const params = new URLSearchParams({ categoryName });
   if (fromDate) params.append('fromDate', fromDate);
   if (toDate) params.append('toDate', toDate);
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/jefe-departamento/teachers?${params.toString()}`
   );
   return res.json();
@@ -424,7 +583,7 @@ export const getJefeDepartamentoMovimientos = async (
 ): Promise<JefeDepartamentoMovimientosData> => {
   const params = new URLSearchParams({ categoryName });
   if (semester) params.append('semester', semester);
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/jefe-departamento/movimientos?${params.toString()}`
   );
   return res.json();
@@ -441,7 +600,7 @@ export interface JefeDepartamentoSemestersData {
 export const getJefeDepartamentoSemesters = async (
   categoryName: string
 ): Promise<JefeDepartamentoSemestersData> => {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/api/moodle/jefe-departamento/movimientos/semesters?categoryName=${encodeURIComponent(categoryName)}`
   );
   return res.json();
@@ -457,7 +616,7 @@ export const moodleRequest = async (
 ): Promise<unknown> => {
   const moodleToken = localStorage.getItem("moodleToken");
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await authFetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

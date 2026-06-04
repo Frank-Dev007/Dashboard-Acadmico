@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { getTeacherNotifications, markTeacherNotificationsRead, RiskAlert } from '@/service/api';
 import {
   GraduationCap,
   Menu,
@@ -36,6 +37,66 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, role, onLogout }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+
+  // ── Notificaciones de riesgo (solo profesor) ──────────────────────────────
+  const [notifs, setNotifs] = useState<RiskAlert[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const notifUserId = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null')?.id ?? null;
+    } catch {
+      return null;
+    }
+  })();
+
+  useEffect(() => {
+    if (role !== 'teacher' || !notifUserId) return;
+    let active = true;
+    const load = () =>
+      getTeacherNotifications(notifUserId)
+        .then((d) => {
+          if (active && d.ok) setNotifs(d.alerts || []);
+        })
+        .catch(() => {});
+    load();
+    const iv = setInterval(load, 5 * 60 * 1000); // refrescar cada 5 min
+    return () => {
+      active = false;
+      clearInterval(iv);
+    };
+  }, [role, notifUserId]);
+
+  useEffect(() => {
+    if (!notifOpen) return;
+    const h = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [notifOpen]);
+
+  const handleToggleNotifs = () => {
+    const willOpen = !notifOpen;
+    setNotifOpen(willOpen);
+    // Al abrir, marcar como leídas en el backend (se mantienen visibles en el panel)
+    if (willOpen && role === 'teacher' && notifUserId && notifs.length > 0) {
+      markTeacherNotificationsRead(notifUserId).catch(() => {});
+    }
+  };
+
+  const fmtAlertDate = (ms: number) => {
+    const diff = Date.now() - ms;
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return 'Ahora';
+    if (min < 60) return `Hace ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `Hace ${h}h`;
+    return `Hace ${Math.floor(h / 24)}d`;
+  };
 
   const studentNav = [
     { icon: Home, label: 'Inicio', path: '/student' },
@@ -134,10 +195,66 @@ export default function DashboardLayout({ children, role, onLogout }: DashboardL
             </div>
 
             {/* Notifications */}
-            <button className="relative p-2 hover:bg-gray-100 rounded-lg">
-              <Bell className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={handleToggleNotifs}
+                className="relative p-2 hover:bg-gray-100 rounded-lg"
+                aria-label="Notificaciones"
+              >
+                <Bell className="w-5 h-5 text-gray-600" />
+                {notifs.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
+                    {notifs.length > 9 ? '9+' : notifs.length}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                    <p className="text-sm font-semibold text-gray-900">Alertas de riesgo</p>
+                  </div>
+                  <div className="max-h-80 overflow-auto">
+                    {notifs.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-gray-500 text-center">
+                        No hay alertas nuevas.
+                      </p>
+                    ) : (
+                      notifs.map((a) => (
+                        <Link
+                          key={`${a.studentId}-${a.date}`}
+                          to="/teacher/risk-map"
+                          onClick={() => setNotifOpen(false)}
+                          className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                        >
+                          <div className="bg-red-100 p-2 rounded-lg shrink-0">
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900">
+                              <strong>{a.nombre}</strong> pasó a riesgo alto
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Score {Math.round(a.score * 100)}% · {fmtAlertDate(a.date)}
+                            </p>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                  {notifs.length > 0 && (
+                    <Link
+                      to="/teacher/risk-map"
+                      onClick={() => setNotifOpen(false)}
+                      className="block px-4 py-2.5 text-center text-sm text-indigo-600 hover:bg-indigo-50 border-t border-gray-100"
+                    >
+                      Ver mapa de riesgo
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Profile dropdown */}
             <Link to={`/${role}/profile`} className="flex items-center gap-3 hover:bg-gray-100 rounded-lg p-2">

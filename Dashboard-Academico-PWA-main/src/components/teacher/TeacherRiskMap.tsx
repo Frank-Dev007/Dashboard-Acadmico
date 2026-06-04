@@ -153,7 +153,8 @@ export default function TeacherRiskMap() {
           <p className="text-sm text-gray-500">No hay estudiantes en riesgo en este momento.</p>
         )}
         {students.map((student) => {
-          const colors = riskColors(student.riskLevel);
+          const colors = riskColors(student.level);
+          const scorePct = Math.round(student.score * 100);
           return (
             <Card key={student.id} className={`${colors.bg} border-2 ${colors.border}`}>
               <CardHeader>
@@ -167,7 +168,7 @@ export default function TeacherRiskMap() {
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="text-lg text-gray-900 font-semibold">{student.nombre}</h3>
                       <Badge className={colors.badge}>
-                        {riskLabel(student.riskLevel)}
+                        {riskLabel(student.level)}
                       </Badge>
                       <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
                     </div>
@@ -175,12 +176,46 @@ export default function TeacherRiskMap() {
                       <p className="text-sm text-gray-600 mb-3">{student.email}</p>
                     )}
 
-                    {/* Solo Promedio */}
+                    {/* Score de riesgo + métricas clave */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                      <div>
+                        <p className="text-xs text-gray-600">Score de Riesgo</p>
+                        <p className={`${colors.text} font-semibold text-lg`}>{scorePct}%</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">Promedio</p>
+                        <p className="text-gray-900 font-semibold">
+                          {student.promedio != null ? student.promedio.toFixed(2) : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">Días sin acceso</p>
+                        <p className="text-gray-900 font-semibold">
+                          {student.diasSinAcceso != null ? student.diasSinAcceso : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">Sin entregar</p>
+                        <p className="text-gray-900 font-semibold">{student.notSubmitted}</p>
+                      </div>
+                    </div>
+
+                    {/* Barra de score con segmentos por variable */}
                     <div className="mb-3">
-                      <p className="text-xs text-gray-600">Promedio</p>
-                      <p className={`${colors.text} font-semibold text-lg`}>
-                        {student.promedio.toFixed(2)}
-                      </p>
+                      <div className="flex h-2 rounded-full overflow-hidden bg-gray-200" title="Aporte de cada variable al score">
+                        <div className="bg-indigo-500" style={{ width: `${student.breakdown.promedio * 100}%` }} />
+                        <div className="bg-blue-400" style={{ width: `${student.breakdown.entregasIncompletas * 100}%` }} />
+                        <div className="bg-amber-400" style={{ width: `${student.breakdown.diasSinAcceso * 100}%` }} />
+                        <div className="bg-purple-400" style={{ width: `${student.breakdown.participacionForos * 100}%` }} />
+                        <div className="bg-pink-400" style={{ width: `${student.breakdown.horasDedicacion * 100}%` }} />
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10px] text-gray-500">
+                        <span><span className="inline-block w-2 h-2 rounded-full bg-indigo-500 mr-1" />Promedio</span>
+                        <span><span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-1" />Entregas</span>
+                        <span><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1" />Inactividad</span>
+                        <span><span className="inline-block w-2 h-2 rounded-full bg-purple-400 mr-1" />Foros</span>
+                        <span><span className="inline-block w-2 h-2 rounded-full bg-pink-400 mr-1" />Dedicación</span>
+                      </div>
                     </div>
 
                     {/* Última actividad */}
@@ -232,6 +267,31 @@ export default function TeacherRiskMap() {
           );
         })}
       </div>
+
+      {/* Nota explicativa del score */}
+      {!loading && students.length > 0 && (
+        <Card className="bg-indigo-50 border-indigo-200">
+          <CardContent className="p-6 text-sm text-gray-700 space-y-2">
+            <p className="font-semibold text-gray-800">Cómo se calcula el Score de Riesgo</p>
+            <p className="text-gray-600">
+              Es un puntaje ponderado (0–100%) que combina 5 variables. A mayor score, mayor riesgo de deserción:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-gray-600 ml-2">
+              <li><strong>Promedio bajo</strong> — peso 35%</li>
+              <li><strong>Entregas incompletas</strong> (vencidas sin entregar) — peso 25%</li>
+              <li><strong>Días sin acceso</strong> — peso 20%</li>
+              <li><strong>Participación en foros</strong> — peso 10%</li>
+              <li><strong>Horas de dedicación</strong> — peso 10%</li>
+            </ul>
+            <p className="text-gray-600">
+              Clasificación: <span className="text-red-700 font-medium">Alto ≥ 70%</span> ·{' '}
+              <span className="text-yellow-700 font-medium">Medio 40–69%</span> ·{' '}
+              <span className="text-green-700 font-medium">Bajo &lt; 40%</span>.
+              Cuando un estudiante pasa a <strong>Alto</strong>, se genera una notificación en la campana 🔔 del encabezado.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

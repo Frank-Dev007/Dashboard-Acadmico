@@ -325,6 +325,7 @@ export const getUserMeaningfulActivity = async (userid, role, courseIds = []) =>
   const productiveSessions = sessions.filter((s) => s.hasMovement);
 
   let avgSessionHours = 0;
+  let totalHours = 0;
   if (productiveSessions.length > 0) {
     const totalSec = productiveSessions.reduce((sum, s) => {
       // Duración = desde course_viewed hasta el último movimiento productivo
@@ -334,11 +335,12 @@ export const getUserMeaningfulActivity = async (userid, role, courseIds = []) =>
     avgSessionHours = Number(
       (totalSec / productiveSessions.length / 3600).toFixed(2)
     );
+    totalHours = Number((totalSec / 3600).toFixed(2));
   }
 
   // ── lastAccess, firstAccess, distinctDays sobre eventos significativos ──
   if (meaningfulTimestamps.length === 0) {
-    return { lastAccess: 0, firstAccess: 0, distinctDays: 0, avgSessionHours };
+    return { lastAccess: 0, firstAccess: 0, distinctDays: 0, avgSessionHours, totalHours };
   }
 
   const lastAccess = meaningfulTimestamps[meaningfulTimestamps.length - 1];
@@ -351,7 +353,40 @@ export const getUserMeaningfulActivity = async (userid, role, courseIds = []) =>
   }
   const distinctDays = dayKeys.size;
 
-  return { lastAccess, firstAccess, distinctDays, avgSessionHours };
+  return { lastAccess, firstAccess, distinctDays, avgSessionHours, totalHours };
+};
+
+// Devuelve el timestamp (Unix seg) del último acceso del usuario a CUALQUIERA
+// de los cursos dados (cualquier evento, incluido course_viewed). 0 si nunca.
+// Es el "última vez que entró" — más intuitivo para "días sin acceso".
+export const getLastCourseAccess = async (userid, courseIds = []) => {
+  if (!courseIds.length) return 0;
+  const placeholders = courseIds.map(() => "?").join(",");
+  const sql = `
+    SELECT MAX(timecreated) AS lastTs
+    FROM ${T}logstore_standard_log
+    WHERE userid = ?
+      AND courseid IN (${placeholders})
+  `;
+  const [rows] = await pool.query(sql, [userid, ...courseIds]);
+  return Number(rows[0]?.lastTs ?? 0);
+};
+
+// Cuenta los posts (created) que un estudiante ha hecho en foros de los cursos dados.
+// Sirve como señal de "participación en foros" para el score de riesgo.
+export const countForumPostsByUser = async (userid, courseIds = []) => {
+  if (!courseIds.length) return 0;
+  const placeholders = courseIds.map(() => "?").join(",");
+  const sql = `
+    SELECT COUNT(*) AS total
+    FROM ${T}logstore_standard_log
+    WHERE userid = ?
+      AND courseid IN (${placeholders})
+      AND component = 'mod_forum'
+      AND action = 'created'
+  `;
+  const [rows] = await pool.query(sql, [userid, ...courseIds]);
+  return Number(rows[0]?.total ?? 0);
 };
 
 // ─── Para "Gestión de Movimientos Docentes" ──────────────────────────────────
