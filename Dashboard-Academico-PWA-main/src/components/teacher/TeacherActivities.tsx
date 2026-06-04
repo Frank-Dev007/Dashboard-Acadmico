@@ -1,86 +1,61 @@
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { FileText, Calendar, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { FileText, Calendar, Clock, CheckCircle, XCircle, AlertCircle, UserX } from 'lucide-react';
+import { getTeacherActivities, TeacherActivitiesData } from '@/service/api';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+const formatDate = (ms: number | null): string => {
+  if (ms == null) return '—';
+  const d = new Date(ms);
+  return `${String(d.getDate()).padStart(2, '0')} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+const tipoLabel = (tipo: string) => {
+  switch (tipo) {
+    case 'assignment': return 'Tarea';
+    case 'quiz':       return 'Evaluación';
+    case 'forum':      return 'Foro';
+    default:           return tipo;
+  }
+};
+
+// Color de la barra de progreso de entregas según %
+const barColor = (pct: number) => {
+  if (pct >= 75) return 'bg-green-500';
+  if (pct >= 15) return 'bg-orange-500';
+  return 'bg-red-500';
+};
+
+// ─── Componente ──────────────────────────────────────────────────────────────
 
 export default function TeacherActivities() {
-  const activities = [
-    { 
-      id: 1,
-      name: 'Proyecto Final - Bases de Datos',
-      type: 'Proyecto',
-      dueDate: '05 Nov 2025',
-      submitted: 47,
-      total: 54,
-      graded: 12,
-      pending: 35,
-      late: 7
-    },
-    { 
-      id: 2,
-      name: 'Quiz Capítulo 5',
-      type: 'Evaluación',
-      dueDate: '07 Nov 2025',
-      submitted: 42,
-      total: 54,
-      graded: 42,
-      pending: 0,
-      late: 0
-    },
-    { 
-      id: 3,
-      name: 'Tarea Práctica React',
-      type: 'Tarea',
-      dueDate: '09 Nov 2025',
-      submitted: 38,
-      total: 54,
-      graded: 30,
-      pending: 8,
-      late: 16
-    },
-    { 
-      id: 4,
-      name: 'Foro: Arquitecturas de Software',
-      type: 'Foro',
-      dueDate: '10 Nov 2025',
-      submitted: 51,
-      total: 54,
-      graded: 51,
-      pending: 0,
-      late: 3
-    },
-    { 
-      id: 5,
-      name: 'Lectura Capítulo 6',
-      type: 'Lectura',
-      dueDate: '12 Nov 2025',
-      submitted: 29,
-      total: 54,
-      graded: 0,
-      pending: 29,
-      late: 25
-    },
-  ];
+  const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const userId = storedUser?.id;
 
-  const punctualityData = [
-    { activity: 'Proyecto BD', onTime: 40, late: 7, notSubmitted: 7 },
-    { activity: 'Quiz Cap 5', onTime: 42, late: 0, notSubmitted: 12 },
-    { activity: 'Tarea React', onTime: 22, late: 16, notSubmitted: 16 },
-    { activity: 'Foro Arq.', onTime: 48, late: 3, notSubmitted: 3 },
-    { activity: 'Lectura 6', onTime: 4, late: 25, notSubmitted: 25 },
-  ];
+  const [data, setData] = useState<TeacherActivitiesData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const getCompletionPercentage = (submitted: number, total: number) => {
-    return Math.round((submitted / total) * 100);
-  };
+  useEffect(() => {
+    if (!userId) return;
+    setLoading(true);
+    getTeacherActivities(userId)
+      .then((d) => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [userId]);
 
-  const getStatusColor = (percentage: number) => {
-    if (percentage >= 80) return 'bg-green-500';
-    if (percentage >= 60) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
+  const fmt = (v: number | undefined) =>
+    loading ? '...' : v != null ? String(v) : '—';
+
+  const resumen = data?.resumen;
+  const actividades = data?.actividades ?? [];
+  const puntualidad = data?.puntualidadPorCurso ?? [];
 
   return (
     <div className="space-y-6">
@@ -90,14 +65,14 @@ export default function TeacherActivities() {
         <p className="text-gray-600">Gestión y seguimiento de tareas, proyectos y evaluaciones</p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── Tarjetas resumen (5) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Actividades Activas</p>
-                <p className="text-gray-900">5</p>
+                <p className="text-gray-900 font-semibold text-2xl">{fmt(resumen?.actividadesActivas)}</p>
               </div>
               <div className="bg-blue-50 p-3 rounded-lg">
                 <FileText className="w-6 h-6 text-blue-600" />
@@ -111,7 +86,7 @@ export default function TeacherActivities() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Por Calificar</p>
-                <p className="text-gray-900">72</p>
+                <p className="text-gray-900 font-semibold text-2xl">{fmt(resumen?.porCalificar)}</p>
               </div>
               <div className="bg-orange-50 p-3 rounded-lg">
                 <Clock className="w-6 h-6 text-orange-600" />
@@ -125,7 +100,7 @@ export default function TeacherActivities() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Entregas a Tiempo</p>
-                <p className="text-gray-900">156</p>
+                <p className="text-gray-900 font-semibold text-2xl">{fmt(resumen?.entregasATiempo)}</p>
               </div>
               <div className="bg-green-50 p-3 rounded-lg">
                 <CheckCircle className="w-6 h-6 text-green-600" />
@@ -139,127 +114,167 @@ export default function TeacherActivities() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Entregas Tardías</p>
-                <p className="text-gray-900">51</p>
+                <p className="text-gray-900 font-semibold text-2xl">{fmt(resumen?.entregasTardias)}</p>
+              </div>
+              <div className="bg-yellow-50 p-3 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Sin Entregar</p>
+                <p className="text-gray-900 font-semibold text-2xl">{fmt(resumen?.sinEntregar)}</p>
               </div>
               <div className="bg-red-50 p-3 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-600" />
+                <UserX className="w-6 h-6 text-red-600" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Punctuality Chart */}
+      {/* ── Puntualidad de Entregas por Curso ── */}
       <Card>
         <CardHeader>
-          <CardTitle>Puntualidad en Entregas</CardTitle>
+          <CardTitle>Puntualidad de Entregas por Curso</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={punctualityData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="activity" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="onTime" fill="#10B981" name="A tiempo" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="late" fill="#F59E0B" name="Tardías" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="notSubmitted" fill="#EF4444" name="Sin entregar" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {loading && <p className="text-sm text-gray-500">Cargando datos...</p>}
+          {!loading && puntualidad.length === 0 && (
+            <p className="text-sm text-gray-500">No hay datos disponibles.</p>
+          )}
+          {puntualidad.length > 0 && (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={puntualidad}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="curso" tick={{ fontSize: 12 }} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="onTime" fill="#10B981" name="A tiempo" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="late" fill="#F59E0B" name="Tardías" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="notSubmitted" fill="#EF4444" name="Sin entregar" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
-      {/* Activities Table */}
+      {/* ── Lista de Actividades ── */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Lista de Actividades</CardTitle>
-            <Button className="bg-indigo-600 hover:bg-indigo-700">
-              + Nueva Actividad
-            </Button>
-          </div>
+          <CardTitle>Lista de Actividades</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Actividad</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Fecha Límite</TableHead>
-                  <TableHead>Entregas</TableHead>
-                  <TableHead>Por Calificar</TableHead>
-                  <TableHead>Tardías</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activities.map((activity) => {
-                  const completionPercentage = getCompletionPercentage(activity.submitted, activity.total);
-                  
-                  return (
-                    <TableRow key={activity.id}>
-                      <TableCell>
-                        <p className="text-gray-900">{activity.name}</p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-gray-50">
-                          {activity.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar className="w-4 h-4" />
-                          {activity.dueDate}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="text-sm text-gray-900">{activity.submitted}/{activity.total}</p>
-                          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${getStatusColor(completionPercentage)}`}
-                              style={{ width: `${completionPercentage}%` }}
-                            />
+          {loading && <p className="text-sm text-gray-500">Cargando actividades...</p>}
+          {!loading && actividades.length === 0 && (
+            <p className="text-sm text-gray-500">No hay actividades registradas.</p>
+          )}
+          {actividades.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Actividad</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Fecha Límite</TableHead>
+                    <TableHead>Entregas</TableHead>
+                    <TableHead>Por Calificar</TableHead>
+                    <TableHead>Tardías</TableHead>
+                    <TableHead>Sin Entregar</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {actividades.map((act) => {
+                    const total = act.totalEstudiantes;
+                    const pct = total > 0 ? Math.round((act.entregas / total) * 100) : 0;
+
+                    return (
+                      <TableRow key={act.id}>
+                        <TableCell>
+                          <p className="text-gray-900">
+                            {act.nombre} - {act.curso}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-gray-50">
+                            {tipoLabel(act.tipo)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Calendar className="w-4 h-4" />
+                            {formatDate(act.fechaLimite)}
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={activity.pending > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}>
-                          {activity.pending}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={activity.late > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}>
-                          {activity.late}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {completionPercentage >= 80 ? (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        ) : completionPercentage >= 60 ? (
-                          <AlertCircle className="w-5 h-5 text-yellow-600" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-600" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            Ver
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Calificar
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <p className="text-sm text-gray-900">
+                              {act.entregas}/{total}
+                            </p>
+                            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${barColor(pct)}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              act.porCalificar > 0
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'bg-green-100 text-green-700'
+                            }
+                          >
+                            {act.porCalificar}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              act.tardias > 0
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }
+                          >
+                            {act.tardias}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              act.sinEntregar > 0
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }
+                          >
+                            {act.sinEntregar}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {pct >= 75 ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : pct >= 15 ? (
+                            <AlertCircle className="w-5 h-5 text-orange-500" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-red-600" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

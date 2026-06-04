@@ -10,7 +10,7 @@ import { loginRequest } from "@/service/api";
 
 
 interface LoginPageProps {
-  onLogin: (role: 'student' | 'teacher' | 'admin') => void;
+  onLogin: (role: 'student' | 'teacher' | 'admin' | 'jefedepartamento') => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
@@ -24,6 +24,25 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     e.preventDefault();
     setIsLoading(true);
 
+    // Usuario centinela: Jefe de Departamento (no existe en Moodle)
+    if (username === 'jefedepsistema' && password === 'jefe123*') {
+      const sentinelUser = {
+        id: 0,
+        nombre: 'Jefe',
+        apellido: 'de Departamento',
+        correo: 'jefedep@sistema.local',
+        tipo_usuario: 'admin' as const,
+        username: 'jefedepsistema',
+        avatar: null,
+      };
+      localStorage.setItem('user', JSON.stringify(sentinelUser));
+      onLogin('jefedepartamento');
+      toast.success("Inicio de sesión exitoso");
+      navigate('/jefedepartamento');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await loginRequest(username, password);
 
@@ -35,7 +54,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
       // Mapear tipo Moodle → rol de la app
       const tipo = res.user.tipo_usuario;
-      let role: 'student' | 'teacher' | 'admin' = 'student';
+      let role: 'student' | 'teacher' | 'admin' | 'jefedepartamento' = 'student';
       if (tipo === 'docente') role = 'teacher';
       else if (tipo === 'admin') role = 'admin';
 
@@ -67,7 +86,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           <h1 className="mb-4">Dashboard Académico PWA</h1>
           <p className="text-indigo-100 text-lg">
             Gestiona y visualiza el desempeño académico en tiempo real. 
-            Plataforma integral para estudiantes, profesores y administradores.
+            Plataforma integral para estudiantes, profesores, jefes de departamento y administradores.
           </p>
           <div className="mt-8 space-y-4">
             <div className="flex items-center gap-3">

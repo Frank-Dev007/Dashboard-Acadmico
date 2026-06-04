@@ -1,0 +1,41 @@
+/* Capa responsive de la PWA.
+ * Breakpoints objetivo: 320px (móvil), 768px (tablet), 1440px (desktop).
+ * Se importa DESPUÉS de index.css para complementar (no reemplaza) las
+ * utilidades mobile-first de Tailwind que ya usan los componentes.
+ */
+
+/* Evitar scroll horizontal accidental en móviles */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Las tablas anchas (gestión docente, movimientos, usuarios) deben poder
+   desplazarse horizontalmente en pantallas pequeñas sin romper el layout. */
+@media (max-width: 768px) {
+  table {
+    min-width: 100%;
+  }
+}
+
+/* ── Móvil (≤ 320px): escala la UI ligeramente para que quepa el contenido ── */
+@media (max-width: 320px) {
+  html {
+    font-size: 14px; /* base 16px → 14px reescala todos los rem proporcionalmente */
+  }
+}
+
+/* ── Tablet (≥ 768px) ── */
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* ── Desktop grande (≥ 1440px): un punto más de tamaño para pantallas amplias ── */
+@media (min-width: 1440px) {
+  html {
+    font-size: 16px;
+  }
+}
