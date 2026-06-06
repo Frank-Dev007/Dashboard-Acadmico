@@ -206,29 +206,6 @@ export default function AdminReports() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Export Options */}
-      <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
-        <CardHeader>
-          <CardTitle>Opciones de Exportación</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Button variant="outline" className="w-full">
-              <Download className="w-4 h-4 mr-2" />
-              Exportar PDF
-            </Button>
-            <Button variant="outline" className="w-full">
-              <Download className="w-4 h-4 mr-2" />
-              Exportar Excel
-            </Button>
-            <Button variant="outline" className="w-full">
-              <Download className="w-4 h-4 mr-2" />
-              Exportar CSV
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

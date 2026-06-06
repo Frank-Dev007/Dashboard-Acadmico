@@ -117,7 +117,6 @@ export default function DashboardLayout({ children, role, onLogout }: DashboardL
   const adminNav = [
     { icon: Home, label: 'Dashboard', path: '/admin' },
     { icon: Users, label: 'Gestión de Usuarios', path: '/admin/users' },
-    { icon: Upload, label: 'Carga Masiva', path: '/admin/bulk-upload' },
     { icon: Settings, label: 'Configuración', path: '/admin/settings' },
     { icon: FileText, label: 'Reportes Ejecutivos', path: '/admin/reports' },
   ];
@@ -127,7 +126,6 @@ export default function DashboardLayout({ children, role, onLogout }: DashboardL
     { icon: Users, label: 'Gestión de Usuarios', path: '/jefedepartamento/users' },
     { icon: ClipboardList, label: 'Gestión Docente', path: '/jefedepartamento/gestion-docente' },
     { icon: Activity, label: 'Movimientos Docentes', path: '/jefedepartamento/movimientos' },
-    { icon: Upload, label: 'Carga Masiva', path: '/jefedepartamento/bulk-upload' },
     { icon: Settings, label: 'Configuración', path: '/jefedepartamento/settings' },
     { icon: FileText, label: 'Reportes Ejecutivos', path: '/jefedepartamento/reports' },
   ];
